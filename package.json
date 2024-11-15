@@ -1,0 +1,44 @@
+{
+  "name": "hash-reddit-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "watch": "tsc -w",
+    "dev": "nodemon dist/index.js",
+    "start": "node dist/index.js",
+    "start2": "ts-node src/index.ts",
+    "dev2": "nodemon --exec ts-node src/index.ts",
+    "create:migration": "mikro-orm migration:create"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.9.0",
+    "nodemon": "^3.1.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "@mikro-orm/cli": "^6.4.0",
+    "@mikro-orm/core": "^6.4.0",
+    "@mikro-orm/migrations": "^6.4.0",
+    "@mikro-orm/postgresql": "^6.4.0",
+    "apollo-server-express": "^3.13.0",
+    "argon2": "^0.41.1",
+    "express": "^4.21.1",
+    "graphql": "^16.9.0",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "type-graphql": "^2.0.0-rc.2"
+  },
+  "mikro-orm": {
+    "useTsNode": true,
+    "configPaths": [
+      ".src/mikro-orm.config.ts",
+      "./dist/mikro-orm.config.js"
+    ]
+  }
+}
