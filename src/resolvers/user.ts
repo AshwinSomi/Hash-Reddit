@@ -11,6 +11,7 @@ import {
   ObjectType,
 } from "type-graphql";
 import argon2 from "argon2";
+// import { error } from "console";
 
 @InputType()
 class UserPasswordInput {
@@ -37,12 +38,27 @@ class UserResponse {
   user?: User;
 }
 
+//--------------READ ME---------
+//  replacing req.session.userId with req.userId
+
 @Resolver()
 export class UserResolver {
+  @Query(() => User, { nullable: true })
+  async me(@Ctx() { session }: MyContext): Promise<User | null> {
+    console.log("Session object in `me` query:", session);
+    console.log("session userID (qid): ", session.userId);
+    if (session.userId) {
+      //
+      const user = await User.findOne({ where: { id: session.userId } });
+      return user;
+    }
+    return Promise.resolve(null);
+  }
+
   @Mutation(() => UserResponse)
   async register(
     @Arg("options", () => UserPasswordInput) options: UserPasswordInput,
-    @Ctx() { em }: MyContext
+    @Ctx() { session }: MyContext
   ): Promise<UserResponse> {
     if (options.username.length <= 2) {
       return {
@@ -50,20 +66,6 @@ export class UserResolver {
           {
             field: "username",
             message: "username length should be at least 3",
-          },
-        ],
-      };
-    }
-
-    const userCheckUser = await em.findOne(User, {
-      username: options.username,
-    });
-    if (userCheckUser) {
-      return {
-        errors: [
-          {
-            field: "username",
-            message: "username already taken",
           },
         ],
       };
@@ -79,22 +81,38 @@ export class UserResolver {
         ],
       };
     }
+    //  if (err.details.includes("already exists")) {
+    // if (err.code=="23505") {
+    if (await User.findOne({ where: { username: options.username } })) {
+      return {
+        errors: [
+          {
+            field: "username",
+            message: "username already taken",
+          },
+        ],
+      };
+    }
 
     const hashedPassword = await argon2.hash(options.password);
-    const user = em.create(User, {
+
+    const user = User.create({
       username: options.username,
       password: hashedPassword,
     });
-    await em.persistAndFlush(user);
+    await user.save();
+
+    session.userId = user.id;
+    console.log("session userID (qid): ", session.userId);
     return { user };
   }
 
   @Mutation(() => UserResponse)
   async login(
     @Arg("options", () => UserPasswordInput) options: UserPasswordInput,
-    @Ctx() { em }: MyContext
+    @Ctx() { session }: MyContext
   ): Promise<UserResponse> {
-    const user = await em.findOne(User, { username: options.username });
+    const user = await User.findOne({ where: { username: options.username } });
     if (!user) {
       return {
         errors: [
@@ -116,6 +134,13 @@ export class UserResolver {
         ],
       };
     }
+    console.log("before session");
+
+    session.userId = user.id;
+    console.log("session userID (qid): ", session.userId);
+    console.log("Session object after setting userId:", session);
+
+    console.log("after session");
 
     return {
       user,
@@ -123,7 +148,7 @@ export class UserResolver {
   }
 
   @Query(() => [User])
-  users(@Ctx() { em }: MyContext): Promise<User[]> {
-    return em.find(User, {});
+  users(): Promise<User[]> {
+    return User.find();
   }
 }

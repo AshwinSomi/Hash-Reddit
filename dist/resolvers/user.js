@@ -68,45 +68,63 @@ UserResponse = __decorate([
     (0, type_graphql_1.ObjectType)()
 ], UserResponse);
 let UserResolver = class UserResolver {
+    me(_a) {
+        return __awaiter(this, arguments, void 0, function* ({ session }) {
+            console.log("Session object in `me` query:", session);
+            console.log("session userID (qid): ", session.userId);
+            if (session.userId) {
+                const user = yield User_1.User.findOne({ where: { id: session.userId } });
+                return user;
+            }
+            return Promise.resolve(null);
+        });
+    }
     register(options_1, _a) {
-        return __awaiter(this, arguments, void 0, function* (options, { em }) {
+        return __awaiter(this, arguments, void 0, function* (options, { session }) {
             if (options.username.length <= 2) {
                 return {
-                    errors: [{
+                    errors: [
+                        {
                             field: "username",
-                            message: "username length should be at least 3"
-                        }]
-                };
-            }
-            const userCheckUser = yield em.findOne(User_1.User, { username: options.username });
-            if (userCheckUser) {
-                return {
-                    errors: [{
-                            field: "username",
-                            message: "username already taken"
-                        }]
+                            message: "username length should be at least 3",
+                        },
+                    ],
                 };
             }
             if (options.password.length <= 5) {
                 return {
-                    errors: [{
+                    errors: [
+                        {
                             field: "password",
-                            message: "password length should be al least 6"
-                        }]
+                            message: "password length should be al least 6",
+                        },
+                    ],
+                };
+            }
+            if (yield User_1.User.findOne({ where: { username: options.username } })) {
+                return {
+                    errors: [
+                        {
+                            field: "username",
+                            message: "username already taken",
+                        },
+                    ],
                 };
             }
             const hashedPassword = yield argon2_1.default.hash(options.password);
-            const user = em.create(User_1.User, {
+            const user = User_1.User.create({
                 username: options.username,
                 password: hashedPassword,
             });
-            yield em.persistAndFlush(user);
+            yield user.save();
+            session.userId = user.id;
+            console.log("session userID (qid): ", session.userId);
             return { user };
         });
     }
     login(options_1, _a) {
-        return __awaiter(this, arguments, void 0, function* (options, { em }) {
-            const user = yield em.findOne(User_1.User, { username: options.username });
+        return __awaiter(this, arguments, void 0, function* (options, { session }) {
+            const user = yield User_1.User.findOne({ where: { username: options.username } });
             if (!user) {
                 return {
                     errors: [
@@ -128,16 +146,28 @@ let UserResolver = class UserResolver {
                     ],
                 };
             }
+            console.log("before session");
+            session.userId = user.id;
+            console.log("session userID (qid): ", session.userId);
+            console.log("Session object after setting userId:", session);
+            console.log("after session");
             return {
                 user,
             };
         });
     }
-    users({ em }) {
-        return em.find(User_1.User, {});
+    users() {
+        return User_1.User.find();
     }
 };
 exports.UserResolver = UserResolver;
+__decorate([
+    (0, type_graphql_1.Query)(() => User_1.User, { nullable: true }),
+    __param(0, (0, type_graphql_1.Ctx)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UserResolver.prototype, "me", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => UserResponse),
     __param(0, (0, type_graphql_1.Arg)("options", () => UserPasswordInput)),
@@ -156,9 +186,8 @@ __decorate([
 ], UserResolver.prototype, "login", null);
 __decorate([
     (0, type_graphql_1.Query)(() => [User_1.User]),
-    __param(0, (0, type_graphql_1.Ctx)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], UserResolver.prototype, "users", null);
 exports.UserResolver = UserResolver = __decorate([

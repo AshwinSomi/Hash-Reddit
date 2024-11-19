@@ -13,28 +13,72 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 require("reflect-metadata");
-const core_1 = require("@mikro-orm/core");
-const mikro_orm_config_1 = __importDefault(require("./mikro-orm.config"));
+const constants_1 = require("./constants");
 const express_1 = __importDefault(require("express"));
 const apollo_server_express_1 = require("apollo-server-express");
 const type_graphql_1 = require("type-graphql");
 const hello_1 = require("./resolvers/hello");
 const post_1 = require("./resolvers/post");
 const user_1 = require("./resolvers/user");
+const typeorm_1 = require("typeorm");
+const cors_1 = __importDefault(require("cors"));
+const express_session_1 = __importDefault(require("express-session"));
+const ioredis_1 = __importDefault(require("ioredis"));
+const Post_1 = require("./entities/Post");
+const User_1 = require("./entities/User");
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
-    const orm = yield core_1.MikroORM.init(mikro_orm_config_1.default);
-    const em = orm.em.fork();
-    orm.getMigrator().up();
+    const dataSource = new typeorm_1.DataSource({
+        type: "postgres",
+        database: "hashReddit2",
+        username: "postgres",
+        password: "3479",
+        logging: true,
+        synchronize: true,
+        entities: [Post_1.Post, User_1.User],
+    });
+    dataSource
+        .initialize()
+        .then(() => {
+        console.log("Data source has been initialized");
+    })
+        .catch((err) => {
+        console.log("Error during data source initializing, ", err);
+    });
     const app = (0, express_1.default)();
+    const RedisStore = require("connect-redis").default;
+    const redis = new ioredis_1.default();
+    app.use((0, cors_1.default)({
+        origin: ["http://localhost:3000", "https://studio.apollographql.com"],
+        credentials: true,
+    }));
+    app.use((0, express_session_1.default)({
+        name: "qid",
+        store: new RedisStore({
+            client: redis,
+            disableTouch: true,
+        }),
+        cookie: {
+            maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
+            httpOnly: true,
+            sameSite: constants_1.__prod__ ? "none" : "lax",
+            secure: constants_1.__prod__,
+        },
+        resave: false,
+        saveUninitialized: false,
+        secret: "tgwhrhlfvbfbkjzdnsfoirfu",
+    }));
     const apolloServer = new apollo_server_express_1.ApolloServer({
         schema: yield (0, type_graphql_1.buildSchema)({
             resolvers: [hello_1.HellResolver, post_1.PostResolver, user_1.UserResolver],
             validate: false,
         }),
-        context: () => ({ em: em }),
+        context: ({ req, res }) => ({ session: req.session, res, redis }),
     });
     yield apolloServer.start();
-    apolloServer.applyMiddleware({ app: app });
+    apolloServer.applyMiddleware({
+        app: app,
+        cors: false,
+    });
     app.listen(4000, () => {
         console.log("sever started on localhost:4000");
     });

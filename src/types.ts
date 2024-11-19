@@ -1,7 +1,23 @@
-import { Connection, EntityManager, IDatabaseDriver } from "@mikro-orm/core";
-import { PostgreSqlDriver, SqlEntityManager } from "@mikro-orm/postgresql";
+import { Request, Response } from "express";
+import { Redis } from "ioredis";
+
+// import session from "express-session";
+
+// declare global {
+//   namespace Express {
+//     interface Session {
+//       userId?: number; // Add any custom properties to session
+//     }
+//   }
+// }
+
+interface Session {
+  userId?: number; // Add any custom properties to session
+}
 
 export type MyContext = {
-  em: SqlEntityManager<PostgreSqlDriver> &
-    EntityManager<IDatabaseDriver<Connection>>;
+  //req: Request; //& { session: Express.Session };
+  session: Session;
+  res: Response;
+  redis: Redis;
 };
